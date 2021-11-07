@@ -1,4 +1,4 @@
-# Install script for directory: /home/kasia/doktoratnew
+# Install script for directory: directory_path
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,9 +39,9 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/kasia/doktoratnew/externals/cmake_install.cmake")
-  include("/home/kasia/doktoratnew/src/cmake_install.cmake")
-  include("/home/kasia/doktoratnew/tools/cmake_install.cmake")
+  include("directory_path/externals/cmake_install.cmake")
+  include("directory_path/src/cmake_install.cmake")
+  include("directory_path/tools/cmake_install.cmake")
 
 endif()
 
@@ -53,5 +53,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/kasia/doktoratnew/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "directory_path/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
