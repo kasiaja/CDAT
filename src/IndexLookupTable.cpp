@@ -1,3 +1,10 @@
+// The described algorithm solves the problem of pattern searching in a text and
+// was designed specifically for large DNA sequences. It scans the text once
+// to create an index - a data structure that accelerates finding pattern occurrences.
+// It stores data in a compressed form a direct-address table for fixed-length subwords
+// regularly sampled from the text and is implemented in
+// the Compressed Direct-Address Table (CDAT) library.
+
 #include "IndexLookupTable.hpp"
 #include <math.h> 
 
@@ -14,20 +21,22 @@ namespace cdat {
     Index(word_size, shift, text_length, additional_text_length,
     bit_vector, rank1, select1, permutation, alphabet),
     m_text(text) {
-        substring_length = 5;
-        pref_length = substring_length*2;
+        pref_length = 5
+        substring_length = pref_length * 2;
         init();
     }
 
     IndexLookupTable::IndexLookupTable(size_t word_size, size_t shift, uint prefix) :
     Index(word_size, shift) {
-        substring_length = prefix;
-        pref_length = substring_length*2;
+        pref_length = 5
+        substring_length = pref_length * 2;
     }
 
     IndexLookupTable::~IndexLookupTable() {
     }
 
+    // check if the words equal - if pattern equals the subword starting at position and ending at length
+    // character by character. It's a long process but we rarely have to use it
     bool IndexLookupTable::check_word(size_type const position, size_type const length, const char *pattern) const {
         for (uint i = 0; i < length; ++i) {
             char curr_char = m_alphabet->get_char_from_value((*m_text)[position + i]);
@@ -38,7 +47,7 @@ namespace cdat {
         return true;
     }
 
-    /* returns words starting at from of length length */
+    // returns words starting at from of length length
     IndexLookupTable::value_type IndexLookupTable::extract_value(size_type const from,
             size_type const length) const {
         value_type result = 0;
@@ -53,7 +62,7 @@ namespace cdat {
         return result;
     }
 
-    /* returns words starting at from and ending at to */
+    // returns words starting at from and ending at to
     int IndexLookupTable::extract(ulong const from, ulong const to,
             std::string *text, ulong *length) const {
         ulong _to = std::min(to, m_text_length);
@@ -89,7 +98,8 @@ namespace cdat {
         return result;
     }
 
-    // returns last or rather after last lexicographically string of length k
+    // returns last or rather after last lexicographically string of length k,
+    // so basically a string consisting of letters 'T' of length k
     std::string IndexLookupTable::last_lexicographically(ulong k) const {
         std::string result = "";
         for (ulong i = 0; i < k; i++) {
@@ -126,32 +136,34 @@ namespace cdat {
         PatternPosition(const IndexLookupTable& pilt) : ilt(pilt) {
         }
 
-        //gets beginning positions of two pattern substrings of length substring_length and return 
-        //true if the first one is smaller lexicographically than the second
+        //  the arguments are the beginning positions of two pattern substrings of length substring_length and it returns 
+        //  true if the first one is smaller lexicographically than the second
         bool operator()(ulong i, ulong j) const {
-            return ilt.temp_subs.at(i) < ilt.temp_subs.at(j); // ilt.extract_value(i + ilt.pref_length, ilt.substring_length - ilt.pref_length) < ilt.extract_value(j + ilt.pref_length, ilt.substring_length - ilt.pref_length);
+            return ilt.temp_subs.at(i) < ilt.temp_subs.at(j);
         }
 
+        // similar to the above only one of the arguments in a string reference instead of the index
         bool operator()(const std::string& s, const ulong& i) const {
             std::string pattern_part = ilt.read_word_from_pattern(i + ilt.pref_length, ilt.substring_length - ilt.pref_length);
             for (ulong j = 0; j < ilt.substring_length - ilt.pref_length; j++) {
                 if (pattern_part[j] < s[j])
-                    return -1;
+                    return true;
                 if (pattern_part[j] > s[j])
-                    return 1;
+                    return false;
             }
-            return 0;
+            return false;
         }
 
+        // similar to the above only one of the arguments in a string reference instead of the index
         bool operator()(const ulong& i, const std::string& s) const {
             std::string pattern_part = ilt.read_word_from_pattern(i + ilt.pref_length, ilt.substring_length - ilt.pref_length);
             for (ulong j = 0; j < ilt.substring_length - ilt.pref_length; j++) {
                 if (pattern_part[j] < s[j])
-                    return 1;
+                    return true;
                 if (pattern_part[j] > s[j])
-                    return -1;
+                    return false;
             }
-            return 0;
+            return false;
         }
 
     };
@@ -165,18 +177,20 @@ namespace cdat {
         PatternPositionSearch(const IndexLookupTable& pilt) : ilt(pilt) {
         }
 
-        //gets beginning positions of two pattern substrings of length substring_length and return 
-        //true if the first one is smaller lexicographically than the second
-
+        // returns information if a substring of length pref_length would fit between 
+        // the values in the first and the second argument
         bool operator()(std::pair<ulong, ulong> i, ulong j) const {
             return i.first < ilt.extract_value(j + ilt.pref_length, i.second);
         }
-
+        
+        // returns information if a substring of length pref_length would fit between 
+        // the values in the first and the second argument
         bool operator()(ulong i, std::pair<ulong, ulong> j) const {
             return ilt.extract_value(i + ilt.pref_length, j.second) < j.first;
         }
     };
 
+    // sorts element within a bucket
     void IndexLookupTable::sortAtPosition(ulong begin, ulong end, ulong position) {
         std::deque<ulong> buckets [m_alphabet->size()];
         for (ulong i = begin; i < end; i++) {
@@ -192,7 +206,6 @@ namespace cdat {
                 where++;
             }
         }
-        //assert(where == end);
     }
 
     void IndexLookupTable::radix_sort(ulong begin, ulong end) {
@@ -202,28 +215,40 @@ namespace cdat {
     }
 
     void IndexLookupTable::radix_sort_init() {
-        sdsl::int_vector<INT_ROZM> substringsPom[2];substringsPom[1].resize(m_text->size() / m_shift);
+        // there are two arrays so that we can use them in turns and not overwrite any data - 
+        // in one round we use the first one as reference and fill in the second one
+        // and then the other way round
+        sdsl::int_vector<INT_ROZM> substringsPom[2];
+        // we only keep each m_shift's value, hence the size
+        substringsPom[1].resize(m_text->size() / m_shift);
         substringsPom[0].resize(m_text->size() / m_shift);
-        lookup_table.resize(std::pow(m_alphabet->size(), pref_length)); // get_word_value(last_word), 0);
+        lookup_table.resize(std::pow(m_alphabet->size(), pref_length));
         for (ulong i = 0; i < (ulong) m_text->size() - substring_length + 1; i += m_shift) {
             substringsPom[0][i/m_shift] = i;
         }
+        // pref_length is the length of a word used in the first phase of the algorithm - 
+        // it determines the number of backets (alphabet_size^pref_length).
+        // substring_length is used in the second phase of the algorithm - it defines how many
+        // characters we take into consideration when we sort the words
         ulong przes = (substring_length/pref_length - 1) * pref_length;
         for (ulong y = 0; y < pref_length/substring_length; y++) {
+            // init
             for (ulong i =  0; i < lookup_table.size() - 1; i++) {
                 lookup_table[i] = 0;
             }
+            // count how many times each word appears
             for (ulong i = 0; i < (ulong) substringsPom[y % 2].size(); i++) {
                 ulong current_word = extract_value(substringsPom[y%2][i]+przes, pref_length);
                 lookup_table[current_word]++;
             }
+            //count partial sums - where do information about each word start in the array
             ulong partial_sum = 0;
             for (ulong i = 0; i < lookup_table.size(); i++) {
                 partial_sum += lookup_table[i];
                 lookup_table[i] = partial_sum - lookup_table[i];
             }
            
-            //substrings.resize(m_text->size() / m_shift); // number of substrings TODO czy nie powinno byc ceil? Zostaje ten kawalek na koncu
+            // put information about text's subwords in the right place of the array
             for (ulong i = 0; i < (ulong) m_text->size() - substring_length + 1; i += m_shift) {
                 ulong current_word = extract_value(i + przes, pref_length);
                 substringsPom[(y+1)%2][lookup_table[current_word]] = i;
@@ -235,7 +260,6 @@ namespace cdat {
                 lookup_table[i] = lookup_table[i - 1];
             }
             lookup_table[0] = 0; // first range starts at 0
-            
             
             przes -= pref_length;
         }
@@ -280,17 +304,19 @@ namespace cdat {
     }
 
     // Cut first pref_length characters from a string
-
     std::string IndexLookupTable::take_prefix(std::string const &pattern) const {
         return pattern.substr(0, pref_length);
     }
 
+    // counts how many times the pattern fits fully in text. This value is in argument numocc 
+    // We can decide to get the locations of these occurences (when we set argument locate to true) and we get this result in occ
     int IndexLookupTable::count_full_words(std::string const &pattern, ulong length, bool const locate, ulong *numocc, std::vector<ulong> *occ) const {
         (*numocc) = 0;
         for (ulong j = 0; j < std::min(length, m_shift); j++) {
             std::string current_pattern = pattern.substr(j);
+            // we find the right bucket - the range in the array where words with the right prefix (of length pref_length) are
             ulong pointer_to_prefix_index, where_first_pointer, where_last_pointer;
-            if (length > j + pref_length) { // TODO moze > shift + pref_length
+            if (length > j + pref_length) {
                 pointer_to_prefix_index = m_alphabet->get_word_value(current_pattern.substr(0, pref_length));
                 where_first_pointer = lookup_table[pointer_to_prefix_index];
                 if (pointer_to_prefix_index + 1 >= lookup_table.size())
@@ -304,12 +330,14 @@ namespace cdat {
 
                 const std::string extended_pattern2 = next_lexicographically(current_pattern) + first_lexicographically(length - j);
                 pointer_to_prefix_index = m_alphabet->get_word_value(extended_pattern2.substr(0, pref_length));
-                where_last_pointer = lookup_table[pointer_to_prefix_index]; //TODO zmienilam first->last
+                where_last_pointer = lookup_table[pointer_to_prefix_index];
             }
 
+            // search within the right bucket
             ulong current_pattern_ulong = m_alphabet->get_word_value(current_pattern.substr(pref_length, substring_length - pref_length));
             PatternPositionSearch patternPositionSearch(*this);
-            auto begin = lower_bound(substrings.begin() + where_first_pointer, substrings.begin() + where_last_pointer, std::make_pair(current_pattern_ulong, substring_length - pref_length), patternPositionSearch);
+            auto begin = lower_bound(substrings.begin() + where_first_pointer, substrings.begin() + where_last_pointer, 
+                                     std::make_pair(current_pattern_ulong, substring_length - pref_length), patternPositionSearch);
             auto end = upper_bound(substrings.begin() + where_first_pointer, substrings.begin() + where_last_pointer, std::make_pair(current_pattern_ulong, substring_length - pref_length), patternPositionSearch);
             ulong word_length = pattern.size(); // should equal substring_size
             for (auto i = begin; i < end; i++) {
@@ -324,6 +352,7 @@ namespace cdat {
             }
         }
 
+        // we only do that if we need occurences' locations
         if (locate) {
             std::sort(occ->begin(), occ->end());
             occ->erase(std::unique(occ->begin(), occ->end()), occ->end());
